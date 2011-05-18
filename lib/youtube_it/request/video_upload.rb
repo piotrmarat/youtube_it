@@ -407,11 +407,16 @@ class YouTubeIt
 
       def favorites
         favorite_url = "/feeds/api/users/default/favorites"
-        http_connection do |session|
-          response = session.get(favorite_url)
-          raise_on_faulty_response(response)
-          return response.body
+        response = ''
+        if @access_token.nil?
+          http_connection do |session|
+            response = session.get(favorite_url)
+            raise_on_faulty_response(response)
+          end
+        else
+          response = @access_token.get(["http://", base_url, favorite_url].join(""))
         end
+        return YouTubeIt::Parser::VideosFeedParser.new(response.body).parse
       end
 
       def get_current_user
