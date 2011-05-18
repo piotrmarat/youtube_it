@@ -1,5 +1,7 @@
 == DESCRIPTION
 
+  This is fork from https://github.com/kylejginavan/youtube_it without broken history repo (120 mb size)
+
   youtube_it is the most complete Ruby client for the YouTube GData API. It provides an easy
   way to access the latest and most complete access to YouTube's video API.
   In comparison with the earlier Youtube interfaces, this new API and
