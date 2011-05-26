@@ -69,9 +69,9 @@ class YouTubeIt
       else
         request = YouTubeIt::Request::StandardSearch.new(params, request_params)
       end
-
+      response = access_token.get(request.url)
       logger.debug "Submitting request [url=#{request.url}]." if @legacy_debug_flag
-      parser = YouTubeIt::Parser::VideosFeedParser.new(request.url)
+      parser = YouTubeIt::Parser::VideosFeedParser.new(response.body)
       parser.parse
     end
 

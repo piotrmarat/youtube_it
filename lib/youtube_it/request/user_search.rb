@@ -10,7 +10,7 @@ class YouTubeIt
         @url = base_url
         @dev_key = options[:dev_key] if options[:dev_key]
         if params == :favorites
-          @url << "#{options[:user]}/favorites"
+          @url << "default/favorites"
           set_instance_variables(options)
         elsif params[:user] && options[:favorites]
           @url << "#{params[:user]}/favorites"
