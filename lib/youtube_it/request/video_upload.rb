@@ -75,38 +75,38 @@ class YouTubeIt
       def upload(data, opts = {})
         response = nil
         @opts    = { :mime_type => 'video/mp4',
-                     :title => '',
-                     :description => '',
-                     :category => '',
-                     :keywords => [] }.merge(opts)
+          :title => '',
+          :description => '',
+          :category => '',
+          :keywords => [] }.merge(opts)
 
         @opts[:filename] ||= generate_uniq_filename_from(data)
 
         post_body_io = generate_upload_io(video_xml, data)
 
         upload_header = {
-            "Slug"           => "#{@opts[:filename]}",
-            "Content-Type"   => "multipart/related; boundary=#{boundary}",
-            "Content-Length" => "#{post_body_io.expected_length}",
+          "Slug"           => "#{@opts[:filename]}",
+          "Content-Type"   => "multipart/related; boundary=#{boundary}",
+          "Content-Length" => "#{post_body_io.expected_length}",
         }
 
-        if @access_token.nil?
-          upload_header.merge!(authorization_headers).delete("GData-Version")
-          http = Net::HTTP.new(uploads_url)
-          http.set_debug_output(logger) if @http_debugging
-          path = '/feeds/api/users/default/uploads'
-          http.start do | session |
-            post = Net::HTTP::Post.new(path, upload_header)
+          if @access_token.nil?
+            upload_header.merge!(authorization_headers).delete("GData-Version")
+            http = Net::HTTP.new(uploads_url)
+            http.set_debug_output(logger) if @http_debugging
+            path = '/feeds/api/users/default/uploads'
+            http.start do | session |
+              post = Net::HTTP::Post.new(path, upload_header)
             post.body_stream = post_body_io
             response = session.request(post)
+            end
+          else
+            upload_header.merge!(authorization_headers_for_oauth).delete("GData-Version")
+            url = 'http://%s/feeds/api/users/default/uploads' % uploads_url
+            response = @access_token.post(url, post_body_io, upload_header)
           end
-        else
-          upload_header.merge!(authorization_headers_for_oauth).delete("GData-Version")
-          url = 'http://%s/feeds/api/users/default/uploads' % uploads_url
-          response = @access_token.post(url, post_body_io, upload_header)
-        end
-        raise_on_faulty_response(response)
-        return YouTubeIt::Parser::VideoFeedParser.new(response.body).parse
+          raise_on_faulty_response(response)
+          return YouTubeIt::Parser::VideoFeedParser.new(response.body).parse
       end
 
       # Updates a video in YouTube.  Requires:
@@ -172,7 +172,7 @@ class YouTubeIt
           "Content-Length" => "#{token_body.length}",
         }
         token_url = "/action/GetUploadToken"
-        
+
         if @access_token.nil?
           token_header.merge!(authorization_headers)
           http_connection do |session|
@@ -184,7 +184,7 @@ class YouTubeIt
         end
         raise_on_faulty_response(response)
         return {:url    => "#{response.body[/<url>(.+)<\/url>/, 1]}?nexturl=#{nexturl}",
-                :token  => response.body[/<token>(.+)<\/token>/, 1]}
+          :token  => response.body[/<token>(.+)<\/token>/, 1]}
       end
 
       def add_comment(video_id, comment)
@@ -228,7 +228,7 @@ class YouTubeIt
           "Content-Length" => "#{favorite_body.length}",
         }
         favorite_url = "/feeds/api/users/default/favorites"
-        
+
         if @access_token.nil?
           favorite_header.merge!(authorization_headers)
           http_connection do |session|
@@ -249,7 +249,7 @@ class YouTubeIt
           "Content-Length" => "0",
         }
         favorite_url    = "/feeds/api/users/default/favorites/%s" % video_id
-        
+
         if @access_token.nil?
           favorite_header.merge!(authorization_headers).delete("GData-Version")
           http_connection do |session|
@@ -272,6 +272,40 @@ class YouTubeIt
         end
       end
 
+      def subscriptions(opts = {})
+        subscriptions_url = "/feeds/api/users/default/subscriptions?v=2"
+        subscriptions_url << "&" unless opts.empty?
+        subscriptions_url << opts.collect { |k,p| [k,p].join '=' }.join('&')
+        response = ''
+        if @access_token.nil?
+          http_connection do |session|
+            response = session.get(subscriptions_url)
+            raise_on_faulty_response(response)
+          end
+        else
+          response = @access_token.get(["http://", base_url, subscriptions_url].join(""))
+        end
+        return YouTubeIt::Parser::SubscriptionsFeedParser.new(response).parse
+      end
+
+      def subscription_videos(subscription_id, opts = {})
+        subscription_url = "/feeds/api/subscriptions/#{subscription_id}?v=2"
+        subscription_url << "&" unless opts.empty?
+        subscription_url << opts.collect { |k,p| [k,p].join '=' }.join('&')
+        response = ''
+        if @access_token.nil?
+          http_connection do |session|
+            response = session.get(subscription_url)
+            raise_on_faulty_response(response)
+          end
+        else
+          response = @access_token.get(["http://", base_url, subscription_url].join(""))
+        end
+        return response.body
+        #return YouTubeIt::Parser::VideosFeedParser.new(response.body).parse
+      end
+
+
       def playlist(playlist_id)
         playlist_url = "/feeds/api/playlists/%s?v=2" % playlist_id
         http_connection do |session|
@@ -281,15 +315,39 @@ class YouTubeIt
         end
       end
 
-      def playlists
-        playlist_url = "/feeds/api/users/default/playlists?v=2"
-        http_connection do |session|
-          response = session.get(playlist_url)
-          raise_on_faulty_response(response)
-          return response.body
+      def playlist_videos(playlist_id, opts = {})
+        playlist_url = "/feeds/api/playlists/#{playlist_id}?v=2"
+        playlist_url << "&" unless opts.empty?
+        playlist_url << opts.collect { |k,p| [k,p].join '=' }.join('&')
+        response = ''
+        if @access_token.nil?
+          http_connection do |session|
+            response = session.get(playlist_url)
+            raise_on_faulty_response(response)
+          end
+        else
+          response = @access_token.get(["http://", base_url, playlist_url].join(""))
         end
+        return YouTubeIt::Parser::VideosFeedParser.new(response.body).parse
+
       end
-      
+
+      def playlists(opts = {})
+        playlist_url = "/feeds/api/users/default/playlists?v=2"
+        playlist_url << "&" unless opts.empty?
+        playlist_url << opts.collect { |k,p| [k,p].join '=' }.join('&')
+        response = ''
+        if @access_token.nil?
+          http_connection do |session|
+            response = session.get(playlist_url)
+            raise_on_faulty_response(response)
+          end
+        else
+          response = @access_token.get(["http://", base_url, playlist_url].join(""))
+        end
+        return YouTubeIt::Parser::PlaylistsFeedParser.new(response).parse 
+      end
+
       def playlists_for(user)
         playlist_url = "/feeds/api/users/#{user}/playlists?v=2"
         http_connection do |session|
@@ -458,30 +516,30 @@ class YouTubeIt
 
       def authorization_headers
         header = {
-                  "X-GData-Client" => "#{@client_id}",
-                  "X-GData-Key"    => "key=#{@dev_key}",
-                  "GData-Version" => "2",
-                }
-        if @authsub_token
-          header.merge!("Authorization"  => "AuthSub token=#{@authsub_token}")
-        else
-          header.merge!("Authorization"  => "GoogleLogin auth=#{auth_token}")
-        end
-        header
+          "X-GData-Client" => "#{@client_id}",
+          "X-GData-Key"    => "key=#{@dev_key}",
+          "GData-Version" => "2",
+        }
+          if @authsub_token
+            header.merge!("Authorization"  => "AuthSub token=#{@authsub_token}")
+          else
+            header.merge!("Authorization"  => "GoogleLogin auth=#{auth_token}")
+          end
+          header
       end
 
       def parse_upload_error_from(string)
         begin
           REXML::Document.new(string).elements["//errors"].inject('') do | all_faults, error|
-            if error.elements["internalReason"]
-              msg_error = error.elements["internalReason"].text
-            elsif error.elements["location"]
-              msg_error = error.elements["location"].text[/media:group\/media:(.*)\/text\(\)/,1]
-            else
-              msg_error = "Unspecified error"
-            end
-            code = error.elements["code"].text if error.elements["code"]
-            all_faults + sprintf("%s: %s\n", msg_error, code)
+          if error.elements["internalReason"]
+            msg_error = error.elements["internalReason"].text
+          elsif error.elements["location"]
+            msg_error = error.elements["location"].text[/media:group\/media:(.*)\/text\(\)/,1]
+          else
+            msg_error = "Unspecified error"
+          end
+          code = error.elements["code"].text if error.elements["code"]
+          all_faults + sprintf("%s: %s\n", msg_error, code)
           end
         rescue
           string[/<TITLE>(.+)<\/TITLE>/, 1] || string 
@@ -493,7 +551,7 @@ class YouTubeIt
         msg = parse_upload_error_from(response.body.gsub(/\n/, ''))
 
         if response_code == 403 || response_code == 401
-        #if response_code / 10 == 40
+          #if response_code / 10 == 40
           raise AuthenticationError, msg
         elsif response_code / 10 != 20 # Response in 20x means success
           raise UploadError, msg
@@ -527,13 +585,13 @@ class YouTubeIt
 
       def auth_token
         @auth_token ||= begin
-          http = Net::HTTP.new("www.google.com", 443)
-          http.use_ssl = true
-          body = "Email=#{YouTubeIt.esc @user}&Passwd=#{YouTubeIt.esc @password}&service=youtube&source=#{YouTubeIt.esc @client_id}"
-          response = http.post("/youtube/accounts/ClientLogin", body, "Content-Type" => "application/x-www-form-urlencoded")
-          raise UploadError, response.body[/Error=(.+)/,1] if response.code.to_i != 200
-          @auth_token = response.body[/Auth=(.+)/, 1]
-        end
+                          http = Net::HTTP.new("www.google.com", 443)
+                          http.use_ssl = true
+                          body = "Email=#{YouTubeIt.esc @user}&Passwd=#{YouTubeIt.esc @password}&service=youtube&source=#{YouTubeIt.esc @client_id}"
+                          response = http.post("/youtube/accounts/ClientLogin", body, "Content-Type" => "application/x-www-form-urlencoded")
+                          raise UploadError, response.body[/Error=(.+)/,1] if response.code.to_i != 200
+                          @auth_token = response.body[/Auth=(.+)/, 1]
+                        end
       end
 
       # TODO: isn't there a cleaner way to output top-notch XML without requiring stuff all over the place?
@@ -542,20 +600,20 @@ class YouTubeIt
         b.instruct!
         b.entry(:xmlns => "http://www.w3.org/2005/Atom", 'xmlns:media' => "http://search.yahoo.com/mrss/", 'xmlns:yt' => "http://gdata.youtube.com/schemas/2007") do | m |
           m.tag!("media:group") do | mg |
-            mg.tag!("media:title", @opts[:title], :type => "plain")
-            mg.tag!("media:description", @opts[:description], :type => "plain")
-            mg.tag!("media:keywords", @opts[:keywords].join(","))
-            mg.tag!('media:category', @opts[:category], :scheme => "http://gdata.youtube.com/schemas/2007/categories.cat")
-            mg.tag!('yt:private') if @opts[:private]
-            mg.tag!('media:category', @opts[:dev_tag], :scheme => "http://gdata.youtube.com/schemas/2007/developertags.cat") if @opts[:dev_tag]
+          mg.tag!("media:title", @opts[:title], :type => "plain")
+        mg.tag!("media:description", @opts[:description], :type => "plain")
+        mg.tag!("media:keywords", @opts[:keywords].join(","))
+        mg.tag!('media:category', @opts[:category], :scheme => "http://gdata.youtube.com/schemas/2007/categories.cat")
+        mg.tag!('yt:private') if @opts[:private]
+        mg.tag!('media:category', @opts[:dev_tag], :scheme => "http://gdata.youtube.com/schemas/2007/developertags.cat") if @opts[:dev_tag]
           end
-          m.tag!("yt:accessControl", :action => "rate", :permission => @opts[:rate]) if @opts[:rate]
-          m.tag!("yt:accessControl", :action => "comment", :permission => @opts[:comment]) if @opts[:comment]
-          m.tag!("yt:accessControl", :action => "commentVote", :permission => @opts[:commentVote]) if @opts[:commentVote]
-          m.tag!("yt:accessControl", :action => "videoRespond", :permission => @opts[:videoRespond]) if @opts[:videoRespond]
-          m.tag!("yt:accessControl", :action => "list", :permission => @opts[:list]) if @opts[:list]
-          m.tag!("yt:accessControl", :action => "embed", :permission => @opts[:embed]) if @opts[:embed]
-          m.tag!("yt:accessControl", :action => "syndicate", :permission => @opts[:syndicate]) if @opts[:syndicate]
+        m.tag!("yt:accessControl", :action => "rate", :permission => @opts[:rate]) if @opts[:rate]
+        m.tag!("yt:accessControl", :action => "comment", :permission => @opts[:comment]) if @opts[:comment]
+        m.tag!("yt:accessControl", :action => "commentVote", :permission => @opts[:commentVote]) if @opts[:commentVote]
+        m.tag!("yt:accessControl", :action => "videoRespond", :permission => @opts[:videoRespond]) if @opts[:videoRespond]
+        m.tag!("yt:accessControl", :action => "list", :permission => @opts[:list]) if @opts[:list]
+        m.tag!("yt:accessControl", :action => "embed", :permission => @opts[:embed]) if @opts[:embed]
+        m.tag!("yt:accessControl", :action => "syndicate", :permission => @opts[:syndicate]) if @opts[:syndicate]
         end.to_s
       end
 
@@ -564,7 +622,7 @@ class YouTubeIt
         b.instruct!
         b.entry(:xmlns => "http://www.w3.org/2005/Atom", 'xmlns:yt' => "http://gdata.youtube.com/schemas/2007") do | m |
           m.content(data[:comment]) if data[:comment]
-          m.id(data[:favorite] || data[:playlist]) if data[:favorite] || data[:playlist]
+        m.id(data[:favorite] || data[:playlist]) if data[:favorite] || data[:playlist]
         end.to_s
       end
 
@@ -573,8 +631,8 @@ class YouTubeIt
         b.instruct!
         b.entry(:xmlns => "http://www.w3.org/2005/Atom", 'xmlns:yt' => "http://gdata.youtube.com/schemas/2007") do | m |
           m.title(data[:title]) if data[:title]
-          m.summary(data[:description] || data[:summary]) if data[:description] || data[:summary]
-          m.tag!('yt:private') if data[:private]
+        m.summary(data[:description] || data[:summary]) if data[:description] || data[:summary]
+        m.tag!('yt:private') if data[:private]
         end.to_s
       end
 
@@ -582,11 +640,11 @@ class YouTubeIt
         post_body = [
           "--#{boundary}\r\n",
           "Content-Type: application/atom+xml; charset=UTF-8\r\n\r\n",
-          video_xml,
-          "\r\n--#{boundary}\r\n",
+            video_xml,
+            "\r\n--#{boundary}\r\n",
           "Content-Type: #{@opts[:mime_type]}\r\nContent-Transfer-Encoding: binary\r\n\r\n",
           data,
-          "\r\n--#{boundary}--\r\n",
+            "\r\n--#{boundary}--\r\n",
         ]
 
         # Use Greedy IO to not be limited by 1K chunks

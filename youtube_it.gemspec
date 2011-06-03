@@ -32,6 +32,7 @@ Gem::Specification.new do |s|
     "lib/youtube_it/model/content.rb",
     "lib/youtube_it/model/playlist.rb",
     "lib/youtube_it/model/rating.rb",
+    "lib/youtube_it/model/subscription.rb",
     "lib/youtube_it/model/thumbnail.rb",
     "lib/youtube_it/model/user.rb",
     "lib/youtube_it/model/video.rb",

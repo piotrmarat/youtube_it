@@ -61,7 +61,7 @@ class YouTubeIt
       unless request_params[:offset]
         request_params[:offset] = calculate_offset(request_params[:page], request_params[:max_results] )
       end
-
+      Rails.logger.info request_params.inspect
       if params.respond_to?(:to_hash) and not params[:user]
         request = YouTubeIt::Request::VideoSearch.new(request_params)
       elsif (params.respond_to?(:to_hash) && params[:user]) || (params == :favorites)
@@ -69,6 +69,7 @@ class YouTubeIt
       else
         request = YouTubeIt::Request::StandardSearch.new(params, request_params)
       end
+      Rails.logger.info request.url.inspect
       response = access_token.get(request.url)
       logger.debug "Submitting request [url=#{request.url}]." if @legacy_debug_flag
       parser = YouTubeIt::Parser::VideosFeedParser.new(response.body)
@@ -138,12 +139,24 @@ class YouTubeIt
       client.profile(user_id)
     end
 
+    def subscriptions(options = {})
+      client.subscriptions(options)
+    end
+
+    def subscription_videos(subscription_id, options = {})
+      client.subscription_videos(subscription_id, options)
+    end
+
     def playlist(playlist_id)
       client.playlist playlist_id
     end
 
-    def playlists
-      client.playlists
+    def playlists(opts = {})
+      client.playlists(opts)
+    end
+
+    def playlist_videos(playlist, opts = {})
+      client.playlist_videos(playlist, opts)
     end
     
     def playlists_for(user)

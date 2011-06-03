@@ -33,20 +33,20 @@ class YouTubeIt
       end
 
       protected
-        def parse_entry(entry)
-          author = YouTubeIt::Model::Author.new(
-            :name => entry.elements["author"].elements["name"].text,
-            :uri => entry.elements["author"].elements["uri"].text
-          )
-          YouTubeIt::Model::Comment.new(
-            :author => author,
-            :content => entry.elements["content"].text,
-            :published => entry.elements["published"].text,
-            :title => entry.elements["title"].text,
-            :updated => entry.elements["updated "].text,
-            :url => entry.elements["id"].text
-          )
-        end
+      def parse_entry(entry)
+        author = YouTubeIt::Model::Author.new(
+          :name => entry.elements["author"].elements["name"].text,
+          :uri => entry.elements["author"].elements["uri"].text
+        )
+        YouTubeIt::Model::Comment.new(
+          :author => author,
+          :content => entry.elements["content"].text,
+          :published => entry.elements["published"].text,
+          :title => entry.elements["title"].text,
+          :updated => entry.elements["updated "].text,
+          :url => entry.elements["id"].text
+        )
+      end
     end
 
     class PlaylistFeedParser < FeedParser #:nodoc:
@@ -71,16 +71,16 @@ class YouTubeIt
       def parse_content(content)
         doc = REXML::Document.new(content.body)
         feed = doc.elements["feed"]
-        
+
         playlists = []
         feed.elements.each("entry") do |entry|
           playlists << parse_entry(entry)
         end
         return playlists
       end
-      
+
       protected
-      
+
       def parse_entry(entry)
         YouTubeIt::Model::Playlist.new(
           :title         => entry.elements["title"].text,
@@ -127,7 +127,7 @@ class YouTubeIt
         parse_entry(entry)
       end
 
-    protected
+      protected
       def parse_entry(entry)
         video_id = entry.elements["id"].text
         published_at  = entry.elements["published"] ? Time.parse(entry.elements["published"].text) : nil
@@ -142,8 +142,8 @@ class YouTubeIt
           if (scheme =~ /\/categories\.cat$/)
             # it's a category
             categories << YouTubeIt::Model::Category.new(
-                            :term => category.attributes["term"],
-                            :label => category.attributes["label"])
+              :term => category.attributes["term"],
+              :label => category.attributes["label"])
 
           elsif (scheme =~ /\/keywords\.cat$/)
             # it's a keyword
@@ -159,8 +159,8 @@ class YouTubeIt
         author = nil
         if author_element
           author = YouTubeIt::Model::Author.new(
-                     :name => author_element.elements["name"].text,
-                     :uri => author_element.elements["uri"].text)
+            :name => author_element.elements["name"].text,
+            :uri => author_element.elements["uri"].text)
         end
         media_group = entry.elements["media:group"]
 
@@ -196,10 +196,10 @@ class YouTubeIt
         media_group.elements.each("media:thumbnail") do |thumb_element|
           # TODO: convert time HH:MM:ss string to seconds?
           thumbnails << YouTubeIt::Model::Thumbnail.new(
-                          :url => thumb_element.attributes["url"],
-                          :height => thumb_element.attributes["height"].to_i,
-                          :width => thumb_element.attributes["width"].to_i,
-                          :time => thumb_element.attributes["time"])
+            :url => thumb_element.attributes["url"],
+            :height => thumb_element.attributes["height"].to_i,
+            :width => thumb_element.attributes["width"].to_i,
+            :time => thumb_element.attributes["time"])
         end
 
         rating_element = entry.elements["gd:rating"]
@@ -281,7 +281,7 @@ class YouTubeIt
 
     class VideosFeedParser < VideoFeedParser #:nodoc:
 
-    private
+      private
       def parse_content(content)
         videos  = []
         doc     = REXML::Document.new(content)
@@ -304,6 +304,33 @@ class YouTubeIt
           :offset => offset || nil,
           :max_result_count => max_result_count || nil,
           :videos => videos)
+      end
+    end
+
+    class SubscriptionFeedParser < FeedParser
+
+    end
+
+    class SubscriptionsFeedParser < SubscriptionFeedParser
+      def parse_content(content)
+        doc = REXML::Document.new(content.body)
+        feed = doc.elements["feed"]
+
+        subscriptions = []
+        feed.elements.each("entry") do |entry|
+          subscriptions << parse_entry(entry)
+        end
+        return subscriptions
+      end
+
+      protected
+
+      def parse_entry(entry)
+        YouTubeIt::Model::Subscription.new(
+          :title         => entry.elements["title"].text,
+          :subscription_id   => entry.elements["id"].text[/subscription([^<]+)/, 1].sub(':',''),
+          :published     => entry.elements["published"] ? entry.elements["published"].text : nil,
+          :username => entry.elements["yt:username"].text)
       end
     end
   end
