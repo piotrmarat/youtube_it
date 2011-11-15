@@ -1,4 +1,5 @@
 class YouTubeIt
+  class InvalidUserCredentials < YouTubeIt::Error; end
   class Client
     include YouTubeIt::Logging
     # Previously this was a logger instance but we now do it globally
@@ -320,9 +321,10 @@ class YouTubeIt
       @atoken,@asecret = atoken, asecret
     end
 
+    # this raises an NPE, because on a bogus authentication, we get HTML back not XML.  No comment. ~ jfb
     def current_user
       body = access_token.get("http://gdata.youtube.com/feeds/api/users/default").body
-      REXML::Document.new(body).elements["entry"].elements['author'].elements['name'].text
+      REXML::Document.new(body).elements["entry"].elements['author'].elements['name'].text rescue raise InvalidUserCredentials, body
     end
 
     private
