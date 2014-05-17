@@ -15,6 +15,7 @@ class YouTubeIt
       attr_reader :racy                            # racy ([exclude], include)
       attr_reader :author
       attr_reader :lang                            # lt
+      attr_reader :restriction                     # set to user's IP address to get only videos they can see
 
 
       def initialize(params={})
@@ -50,7 +51,7 @@ class YouTubeIt
       end
 
       def to_youtube_params
-        {
+        params = {
           'max-results' => @max_results,
           'orderby' => @order_by,
           'start-index' => @offset,
@@ -62,6 +63,10 @@ class YouTubeIt
           'author' => @author,
           'lr' => @lang
         }
+
+        params['restriction'] = @restriction if @restriction
+
+        params
       end
 
       # Convert category symbols into strings and build the URL. GData requires categories to be capitalized.

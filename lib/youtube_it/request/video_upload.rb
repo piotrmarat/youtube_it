@@ -280,11 +280,11 @@ class YouTubeIt
         if @access_token.nil?
           http_connection do |session|
             response = session.get(subscriptions_url)
-            raise_on_faulty_response(response)
           end
         else
           response = @access_token.get(["http://", base_url, subscriptions_url].join(""))
         end
+        raise_on_faulty_response(response)
         return YouTubeIt::Parser::SubscriptionsFeedParser.new(response).parse
       end
 
@@ -296,11 +296,11 @@ class YouTubeIt
         if @access_token.nil?
           http_connection do |session|
             response = session.get(subscription_url)
-            raise_on_faulty_response(response)
           end
         else
           response = @access_token.get(["http://", base_url, subscription_url].join(""))
         end
+        raise_on_faulty_response(response)
         return response.body
         #return YouTubeIt::Parser::VideosFeedParser.new(response.body).parse
       end
@@ -323,13 +323,12 @@ class YouTubeIt
         if @access_token.nil?
           http_connection do |session|
             response = session.get(playlist_url)
-            raise_on_faulty_response(response)
           end
         else
           response = @access_token.get(["http://", base_url, playlist_url].join(""))
         end
+        raise_on_faulty_response(response)
         return YouTubeIt::Parser::VideosFeedParser.new(response.body).parse
-
       end
 
       def playlists(opts = {})
@@ -340,11 +339,11 @@ class YouTubeIt
         if @access_token.nil?
           http_connection do |session|
             response = session.get(playlist_url)
-            raise_on_faulty_response(response)
           end
         else
           response = @access_token.get(["http://", base_url, playlist_url].join(""))
         end
+        raise_on_faulty_response(response)
         return YouTubeIt::Parser::PlaylistsFeedParser.new(response).parse 
       end
 
@@ -469,11 +468,11 @@ class YouTubeIt
         if @access_token.nil?
           http_connection do |session|
             response = session.get(favorite_url)
-            raise_on_faulty_response(response)
           end
         else
           response = @access_token.get(["http://", base_url, favorite_url].join(""))
         end
+        raise_on_faulty_response(response)
         return YouTubeIt::Parser::VideosFeedParser.new(response.body).parse
       end
 

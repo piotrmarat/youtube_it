@@ -155,14 +155,16 @@ class YouTubeIt
         html_content = entry.elements["content"] ? entry.elements["content"].text : nil
 
         # parse the author
-        author_element = entry.elements["author"]
-        author = nil
-        if author_element
-          author = YouTubeIt::Model::Author.new(
-            :name => author_element.elements["name"].text,
-            :uri => author_element.elements["uri"].text)
-        end
+        # fix: for user's favorites (and possibly other videos saved by the user) Youtube actually returns that user
+        #      as the author instead of the real uploader... so we have to take the uploader from media:credit instead
+
         media_group = entry.elements["media:group"]
+        author = nil
+        unless media_group.elements["media:credit"].nil?
+          author = YouTubeIt::Model::Author.new(
+            :name => media_group.elements["media:credit"].text,
+          )
+        end
 
         # if content is not available on certain region, there is no media:description, media:player or yt:duration
         description = ""
